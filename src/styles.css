@@ -195,3 +195,6 @@ details summary { cursor: pointer; color: var(--muted); }
   .side { border-left: 0; border-top: 1px solid var(--border); }
   header { padding: 8px; }
 }
+
+.folder { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+.folder-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -17,6 +17,7 @@ Webová aplikace na střih a úpravu videa s pomocí AI. Video se zpracovává p
 | **Klipy na Shorts** | Claude najde nejsilnější samostatné momenty, ohodnotí je a jedním klikem z nich udělá časovou osu nebo sestřih |
 | **Podklady k publikaci** | Návrhy názvu, popis, kapitoly s časy podle aktuálního střihu, tagy |
 | **Export** | MP4 (H.264/AAC) jako zdroj, 1080p, 720p, **9:16 na výšku**, 1:1; volitelně vypálené titulky; titulky SRT/VTT |
+| **Ukládání na vybraný disk** | V záložce *Export → Kam ukládat* vyber libovolnou složku na libovolném disku (externí disk, D:, síťový disk…). Aplikace si ji pamatuje a ukládá tam videa i titulky; existující soubory nepřepisuje. Funguje v Chrome a Edge na počítači, jinde se soubory stahují do Stažených |
 
 ## Spuštění
 
@@ -51,6 +52,7 @@ src/
   lib/timeline.ts         čisté funkce nad klipy (split, ripple delete, vystřižení/obnovení rozsahů)
   lib/transcript.ts       segmentace přepisu, vycpávková slova, titulky (SRT/VTT)
   lib/audio.ts            dekódování zvuku, detekce ticha
+  lib/saveTarget.ts       výběr a zapamatování cílové složky (File System Access API)
   lib/ffmpeg.ts           export přes ffmpeg.wasm (jeden vstup na klip, concat, ASS titulky)
   workers/whisper.worker  přepis přes transformers.js
 server/

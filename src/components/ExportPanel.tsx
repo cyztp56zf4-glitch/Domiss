@@ -1,9 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Caption, Clip } from "../types";
 import type { MediaEntry } from "../store";
 import { exportTimeline, type ExportFormat, type ExportOptions } from "../lib/ffmpeg";
 import { toSRT, toVTT } from "../lib/transcript";
 import { formatTime, timelineDuration } from "../lib/timeline";
+import {
+  downloadBlob,
+  ensureWritable,
+  folderPickerSupported,
+  forgetFolder,
+  loadFolder,
+  pickFolder,
+  writeToFolder,
+} from "../lib/saveTarget";
 
 interface Props {
   clips: Clip[];
@@ -19,15 +28,6 @@ const FORMATS: [ExportFormat, string][] = [
   ["square", "Čtverec 1:1"],
 ];
 
-function download(blob: Blob, name: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
-
 export function ExportPanel({ clips, media, captions }: Props) {
   const [format, setFormat] = useState<ExportFormat>("source");
   const [quality, setQuality] = useState<ExportOptions["quality"]>("balanced");
@@ -35,17 +35,65 @@ export function ExportPanel({ clips, media, captions }: Props) {
   const [progress, setProgress] = useState<{ ratio: number; message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const [folder, setFolder] = useState<FileSystemDirectoryHandle | null>(null);
   const baseName = (media[clips[0]?.mediaId]?.name ?? "video").replace(/\.[^.]+$/, "");
+  const canPick = folderPickerSupported();
+
+  useEffect(() => {
+    if (canPick) void loadFolder().then(setFolder);
+  }, [canPick]);
+
+  /** Ask for write access while we're still inside the click (browsers require a user gesture). */
+  const prepareFolder = async (): Promise<FileSystemDirectoryHandle | null> => {
+    if (!folder) return null;
+    try {
+      if (await ensureWritable(folder)) return folder;
+    } catch {
+      /* fall through to download */
+    }
+    setError(`Bez povolení zápisu do složky „${folder.name}“ – soubor se stáhne do Stažených.`);
+    return null;
+  };
+
+  const save = async (dir: FileSystemDirectoryHandle | null, blob: Blob, name: string): Promise<string> => {
+    if (dir) {
+      try {
+        const saved = await writeToFolder(dir, name, blob);
+        return `Uloženo do „${dir.name}/${saved}“`;
+      } catch (e) {
+        setError(`Zápis do složky „${dir.name}“ selhal (${e instanceof Error ? e.message : e}) – stahuji místo toho.`);
+      }
+    }
+    downloadBlob(blob, name);
+    return `Staženo jako ${name}`;
+  };
+
+  const choose = async () => {
+    setError(null);
+    try {
+      const h = await pickFolder();
+      if (h) setFolder(h);
+    } catch (e) {
+      setError(`Složku nejde použít: ${e instanceof Error ? e.message : e}`);
+    }
+  };
+
+  const saveText = async (text: string, type: string, name: string) => {
+    setError(null);
+    const dir = await prepareFolder();
+    setResult(await save(dir, new Blob([text], { type }), name));
+  };
 
   const run = async () => {
     setError(null);
     setResult(null);
+    const dir = await prepareFolder();
     try {
       const blob = await exportTimeline(clips, media, { format, quality, burnCaptions: burn, captions }, (ratio, message) =>
         setProgress({ ratio, message }),
       );
-      download(blob, `${baseName}-strih.mp4`);
-      setResult(`Hotovo – ${(blob.size / 1024 / 1024).toFixed(1)} MB`);
+      const where = await save(dir, blob, `${baseName}-strih.mp4`);
+      setResult(`${where} (${(blob.size / 1024 / 1024).toFixed(1)} MB)`);
     } catch (e) {
       console.error(e);
       setError(e instanceof Error ? e.message : String(e));
@@ -56,6 +104,39 @@ export function ExportPanel({ clips, media, captions }: Props) {
 
   return (
     <div className="export-panel">
+      <section>
+        <h3>Kam ukládat</h3>
+        {canPick ? (
+          <>
+            <div className="folder">
+              <span className="folder-icon">📁</span>
+              <span className="folder-name">{folder ? folder.name : "Stažené soubory (výchozí)"}</span>
+            </div>
+            <div className="row wrap">
+              <button onClick={choose}>{folder ? "Změnit složku / disk" : "Vybrat složku / disk"}</button>
+              {folder && (
+                <button
+                  onClick={() => {
+                    void forgetFolder();
+                    setFolder(null);
+                  }}
+                >
+                  Zpět na Stažené
+                </button>
+              )}
+            </div>
+            <p className="muted small">
+              Vyber libovolnou složku na jakémkoli disku (např. externí disk nebo D:). Aplikace si ji zapamatuje a
+              exporty i titulky ukládá rovnou tam. Stejně pojmenovaný soubor nepřepíše – přidá „(2)“.
+            </p>
+          </>
+        ) : (
+          <p className="muted small">
+            Tento prohlížeč neumí ukládat do vybrané složky – soubory jdou do Stažených. Pro výběr disku použij Chrome
+            nebo Edge na počítači.
+          </p>
+        )}
+      </section>
       <section>
         <h3>Video</h3>
         <p className="muted small">
@@ -99,10 +180,10 @@ export function ExportPanel({ clips, media, captions }: Props) {
         <h3>Titulky</h3>
         <p className="muted small">Titulky odpovídají aktuálnímu střihu ({captions.length} řádků).</p>
         <div className="row">
-          <button disabled={!captions.length} onClick={() => download(new Blob([toSRT(captions)], { type: "text/plain" }), `${baseName}.srt`)}>
+          <button disabled={!captions.length} onClick={() => void saveText(toSRT(captions), "text/plain", `${baseName}.srt`)}>
             SRT
           </button>
-          <button disabled={!captions.length} onClick={() => download(new Blob([toVTT(captions)], { type: "text/vtt" }), `${baseName}.vtt`)}>
+          <button disabled={!captions.length} onClick={() => void saveText(toVTT(captions), "text/vtt", `${baseName}.vtt`)}>
             VTT
           </button>
         </div>
