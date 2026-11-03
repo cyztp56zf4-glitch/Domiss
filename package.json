@@ -11,7 +11,8 @@
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "start": "NODE_ENV=production tsx --env-file-if-exists=.env server/index.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "phone": "npm run build && concurrently -k -n app,tunel -c magenta,green \"npm start\" \"cloudflared tunnel --url http://localhost:8787\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0",
@@ -30,6 +31,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.2.1",
+    "cloudflared": "^0.7.3",
     "concurrently": "^10.0.6",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",

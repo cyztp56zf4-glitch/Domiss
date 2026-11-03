@@ -7,7 +7,7 @@ import { AIPanel } from "./components/AIPanel";
 import { ExportPanel } from "./components/ExportPanel";
 import { decodeAudio } from "./lib/audio";
 import { buildCaptions, buildSegments } from "./lib/transcript";
-import { formatTime, removeSourceRanges, restoreSourceRange, splitAt, uid } from "./lib/timeline";
+import { formatTime, moveClip, removeSourceRanges, restoreSourceRange, splitAt, uid } from "./lib/timeline";
 import type { Segment } from "./types";
 
 type Tab = "transcript" | "ai" | "export";
@@ -17,8 +17,18 @@ function probe(file: File): Promise<{ url: string; duration: number; width: numb
     const url = URL.createObjectURL(file);
     const v = document.createElement("video");
     v.preload = "metadata";
-    v.onloadedmetadata = () => resolve({ url, duration: v.duration, width: v.videoWidth, height: v.videoHeight });
+    v.muted = true;
+    v.playsInline = true;
+    const timer = setTimeout(() => {
+      URL.revokeObjectURL(url);
+      reject(new Error(`Nepodařilo se načíst ${file.name} (vypršel čas).`));
+    }, 20000);
+    v.onloadedmetadata = () => {
+      clearTimeout(timer);
+      resolve({ url, duration: v.duration, width: v.videoWidth, height: v.videoHeight });
+    };
     v.onerror = () => {
+      clearTimeout(timer);
       URL.revokeObjectURL(url);
       reject(new Error(`Prohlížeč neumí otevřít ${file.name}. Zkus MP4 (H.264) nebo WebM.`));
     };
@@ -65,7 +75,8 @@ export default function App() {
           try {
             setPcm(id, await decodeAudio(file));
           } catch {
-            addMedia({ ...entry, hasAudio: false }, false);
+            // could be "no audio track" or a codec/size the browser can't decode – export handles both
+            addMedia({ ...entry, hasAudio: undefined }, false);
           }
         } catch (e) {
           alert(e instanceof Error ? e.message : String(e));
@@ -107,6 +118,8 @@ export default function App() {
   }, [player, clips, selectedClipId, setClips, undo, redo]);
 
   const empty = Object.keys(media).length === 0;
+  const selectedIndex = clips.findIndex((c) => c.id === selectedClipId);
+  const shift = (d: number) => selectedIndex >= 0 && setClips(moveClip(clips, selectedIndex, selectedIndex + d));
 
   return (
     <div
@@ -130,7 +143,7 @@ export default function App() {
           <span className="logo">✂</span> Domiss <span className="muted">AI střih</span>
         </div>
         <div className="toolbar">
-          <button onClick={() => fileRef.current?.click()}>＋ Přidat video</button>
+          <button onClick={() => fileRef.current?.click()}>＋<span className="lbl"> Přidat video</span></button>
           <input
             ref={fileRef}
             type="file"
@@ -145,14 +158,22 @@ export default function App() {
           <button onClick={undo} disabled={!state.past.length} title="Zpět (Ctrl+Z)">↶</button>
           <button onClick={redo} disabled={!state.future.length} title="Znovu (Ctrl+Shift+Z)">↷</button>
           <button onClick={() => setClips(splitAt(clips, player.time))} disabled={!clips.length} title="Rozdělit (S)">
-            ⧉ Rozdělit
+            ⧉<span className="lbl"> Rozdělit</span>
+          </button>
+          <button onClick={() => shift(-1)} disabled={selectedIndex <= 0} title="Posunout klip doleva">◀</button>
+          <button
+            onClick={() => shift(1)}
+            disabled={selectedIndex < 0 || selectedIndex >= clips.length - 1}
+            title="Posunout klip doprava"
+          >
+            ▶
           </button>
           <button
             onClick={() => selectedClipId && setClips(clips.filter((c) => c.id !== selectedClipId))}
             disabled={!selectedClipId}
             title="Smazat klip (Delete)"
           >
-            🗑 Smazat klip
+            🗑<span className="lbl"> Smazat klip</span>
           </button>
         </div>
       </header>
@@ -161,8 +182,8 @@ export default function App() {
         <main className="welcome">
           <div className="drop" onClick={() => fileRef.current?.click()}>
             <div className="big">🎬</div>
-            <h1>Přetáhni sem video</h1>
-            <p className="muted">nebo klikni a vyber soubor (MP4, MOV, WebM…)</p>
+            <h1><span className="no-touch">Přetáhni sem video</span><span className="touch">Vyber video</span></h1>
+            <p className="muted"><span className="no-touch">nebo klikni a vyber soubor (MP4, MOV, WebM…)</span><span className="touch">klepni sem a vyber video z Fotek nebo Souborů</span></p>
             {importing && <p>{importing}</p>}
           </div>
           <ul className="features">

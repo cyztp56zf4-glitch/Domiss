@@ -29,7 +29,7 @@ export function TranscriptPanel({ media, words, segments, clips, time, onSeek, o
 
   // capture native text selection as a word range
   useEffect(() => {
-    const onUp = () => {
+    const onChange = () => {
       const s = window.getSelection();
       if (!s || s.isCollapsed || !boxRef.current) return;
       const el = (n: Node | null) =>
@@ -41,8 +41,9 @@ export function TranscriptPanel({ media, words, segments, clips, time, onSeek, o
       const y = Number(b.dataset.w);
       setSel({ mediaId: a.dataset.m!, from: Math.min(x, y), to: Math.max(x, y) });
     };
-    document.addEventListener("mouseup", onUp);
-    return () => document.removeEventListener("mouseup", onUp);
+    // selectionchange also fires for long-press selection on phones (mouseup does not)
+    document.addEventListener("selectionchange", onChange);
+    return () => document.removeEventListener("selectionchange", onChange);
   }, []);
 
   const selRange = useMemo<Range | null>(() => {
@@ -92,7 +93,7 @@ export function TranscriptPanel({ media, words, segments, clips, time, onSeek, o
           ↺ Obnovit
         </button>
       </div>
-      <p className="muted small">Označ text myší a stiskni Vystřihnout (nebo Delete). Kliknutím na slovo skočíš na jeho místo.</p>
+      <p className="muted small"><span className="no-touch">Označ text myší a stiskni Vystřihnout (nebo Delete). Kliknutím na slovo skočíš na jeho místo.</span><span className="touch">Podrž prst na slově, roztáhni výběr a klepni na Vystřihnout. Klepnutím na slovo skočíš na jeho místo.</span></p>
       <div
         className="transcript-body"
         ref={boxRef}
@@ -125,6 +126,7 @@ export function TranscriptPanel({ media, words, segments, clips, time, onSeek, o
                       data-m={id}
                       className={`w${used ? "" : " cut"}${active ? " active" : ""}${hit ? " hit" : ""}${selected ? " sel" : ""}`}
                       onClick={() => {
+                        if (window.getSelection()?.isCollapsed !== false) setSel(null);
                         const t = sourceToTimeline(clips, id, w.start);
                         if (t !== null && window.getSelection()?.isCollapsed !== false) onSeek(t);
                       }}

@@ -151,7 +151,9 @@ export async function exportTimeline(
     names.set(m.id, `src${i}${ext}`);
   });
 
+  let log = "";
   const onLog = ({ message }: { message: string }) => {
+    log += message + "\n";
     const match = /time=(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(message);
     if (match && total > 0) {
       const t = +match[1] * 3600 + +match[2] * 60 + +match[3];
@@ -181,15 +183,27 @@ export async function exportTimeline(
       subtitlesPath = "/work/subs.ass";
       fontsDir = "/fonts";
     }
-    const args = buildExportArgs(
-      clips,
-      media,
-      (m) => `/input/${names.get(m.id)}`,
-      { ...opts, subtitlesPath, fontsDir },
-      "/work/out.mp4",
-    );
-    onProgress(0, "Renderuji video…");
-    const code = await ff.exec(args);
+    const render = (assumeAudio: boolean) => {
+      // media whose audio couldn't be decoded on import: first assume it has a track, else render silence
+      const resolved = Object.fromEntries(
+        Object.entries(media).map(([id, m]) => [id, { ...m, hasAudio: m.hasAudio ?? assumeAudio }]),
+      );
+      const args = buildExportArgs(
+        clips,
+        resolved,
+        (m) => `/input/${names.get(m.id)}`,
+        { ...opts, subtitlesPath, fontsDir },
+        "/work/out.mp4",
+      );
+      log = "";
+      onProgress(0, "Renderuji video…");
+      return ff.exec(args);
+    };
+    let code = await render(true);
+    const unknownAudio = used.some((m) => m.hasAudio === undefined);
+    if (code !== 0 && unknownAudio && /matches no streams|Stream specifier ':a'/.test(log)) {
+      code = await render(false);
+    }
     if (code !== 0) throw new Error(`ffmpeg skončil s chybou (kód ${code}). Detaily v konzoli.`);
     const data = await ff.readFile("/work/out.mp4");
     await ff.deleteFile("/work/out.mp4").catch(() => undefined);

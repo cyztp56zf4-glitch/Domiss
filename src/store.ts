@@ -2,7 +2,8 @@ import { useCallback, useMemo, useReducer } from "react";
 import type { Clip, Media, Word } from "./types";
 
 export interface MediaEntry extends Media {
-  hasAudio: boolean;
+  /** false = no audio track, undefined = couldn't decode it in the browser (export will find out) */
+  hasAudio?: boolean;
   pcm?: Float32Array; // 16 kHz mono, for waveform + silence detection
 }
 

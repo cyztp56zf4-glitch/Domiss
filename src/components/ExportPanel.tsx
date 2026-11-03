@@ -36,6 +36,7 @@ export function ExportPanel({ clips, media, captions }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [folder, setFolder] = useState<FileSystemDirectoryHandle | null>(null);
+  const [shareFile, setShareFile] = useState<File | null>(null);
   const baseName = (media[clips[0]?.mediaId]?.name ?? "video").replace(/\.[^.]+$/, "");
   const canPick = folderPickerSupported();
 
@@ -87,12 +88,22 @@ export function ExportPanel({ clips, media, captions }: Props) {
   const run = async () => {
     setError(null);
     setResult(null);
+    setShareFile(null);
     const dir = await prepareFolder();
     try {
       const blob = await exportTimeline(clips, media, { format, quality, burnCaptions: burn, captions }, (ratio, message) =>
         setProgress({ ratio, message }),
       );
-      const where = await save(dir, blob, `${baseName}-strih.mp4`);
+      const name = `${baseName}-strih.mp4`;
+      // iPhone/Android: offer the share sheet ("Uložit video" → Fotky) instead of a download.
+      // It needs a fresh tap, so we show a button rather than opening it here.
+      const file = new File([blob], name, { type: "video/mp4" });
+      if (!dir && navigator.canShare?.({ files: [file] })) {
+        setShareFile(file);
+        setResult(`Video je hotové (${(blob.size / 1024 / 1024).toFixed(1)} MB).`);
+        return;
+      }
+      const where = await save(dir, blob, name);
       setResult(`${where} (${(blob.size / 1024 / 1024).toFixed(1)} MB)`);
     } catch (e) {
       console.error(e);
@@ -174,6 +185,21 @@ export function ExportPanel({ clips, media, captions }: Props) {
         )}
         {error && <div className="error">{error}</div>}
         {result && <div className="info">{result}</div>}
+        {shareFile && (
+          <div className="row wrap">
+            <button
+              className="primary"
+              onClick={() =>
+                void navigator.share({ files: [shareFile], title: shareFile.name }).catch((e) => {
+                  if (!(e instanceof DOMException && e.name === "AbortError")) setError(String(e));
+                })
+              }
+            >
+              📲 Uložit do Fotek / sdílet
+            </button>
+            <button onClick={() => downloadBlob(shareFile, shareFile.name)}>Stáhnout do Souborů</button>
+          </div>
+        )}
         <p className="muted small">Dlouhá videa ve vysokém rozlišení můžou v prohlížeči trvat déle než reálný čas.</p>
       </section>
       <section>

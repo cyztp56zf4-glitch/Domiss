@@ -1,9 +1,27 @@
 import express from "express";
+import os from "node:os";
 import path from "node:path";
+import { timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { AIError, EditRequest, MODEL, runEdit } from "./ai";
 
 const app = express();
+
+// Optional password (HTTP Basic, any username) – needed once the app is reachable from the internet,
+// otherwise anyone with the link could spend your Claude API credit.
+const password = process.env.APP_PASSWORD;
+if (password) {
+  const expected = Buffer.from(password);
+  app.use((req, res, next) => {
+    const header = req.headers.authorization ?? "";
+    const given = header.startsWith("Basic ")
+      ? Buffer.from(Buffer.from(header.slice(6), "base64").toString().split(":").slice(1).join(":"))
+      : Buffer.alloc(0);
+    if (given.length === expected.length && timingSafeEqual(given, expected)) return next();
+    res.set("WWW-Authenticate", 'Basic realm="Domiss", charset="UTF-8"').status(401).send("Zadej heslo k Domiss.");
+  });
+}
+
 app.use(express.json({ limit: "20mb" }));
 
 app.get("/api/health", (_req, res) => {
@@ -37,6 +55,16 @@ if (process.env.NODE_ENV === "production") {
 const port = Number(process.env.PORT) || 8787;
 app.listen(port, () => {
   console.log(`Domiss API běží na http://localhost:${port} (model ${MODEL})`);
+  if (process.env.NODE_ENV === "production") {
+    const lan = Object.values(os.networkInterfaces())
+      .flat()
+      .filter((a) => a && a.family === "IPv4" && !a.internal)
+      .map((a) => `http://${a!.address}:${port}`);
+    if (lan.length) console.log(`Na telefonu ve stejné Wi-Fi: ${lan.join("  ")}`);
+  }
+  if (process.env.NODE_ENV === "production" && !password) {
+    console.warn("Pozor: APP_PASSWORD není nastaveno – kdokoli s odkazem může appku (a tvůj API klíč) používat.");
+  }
   if (!process.env.ANTHROPIC_API_KEY) {
     console.warn("Pozor: ANTHROPIC_API_KEY není nastaven – AI střih nebude fungovat.");
   }

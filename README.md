@@ -41,6 +41,42 @@ Bez `ANTHROPIC_API_KEY` funguje všechno kromě sekce *AI střih (Claude)*.
 Při prvním přepisu se z Hugging Face stáhne model Whisper (~80 MB, resp. ~250 MB pro Small);
 prohlížeč si ho pak pamatuje.
 
+## Na iPhonu
+
+Aplikace běží na tvém počítači a iPhone ji otevře v Safari. Video se zpracovává přímo v telefonu.
+
+**Varianta A – odkudkoli (doporučeno):**
+
+```bash
+# do .env si dej APP_PASSWORD=nejake-heslo
+npm run phone
+```
+
+Ve výpisu se objeví adresa `https://….trycloudflare.com`. Otevři ji v Safari na iPhonu a zadej heslo
+(jméno je libovolné). Přes HTTPS funguje i rychlejší přepis (WebGPU) a model Whisper se uloží do
+mezipaměti. Adresa platí, dokud běží `npm run phone`; při dalším spuštění bude jiná.
+
+**Varianta B – jen doma ve stejné Wi-Fi:**
+
+```bash
+npm run build && npm start
+```
+
+Server vypíše adresu typu `http://192.168.x.x:8787`. Přes obyčejné HTTP se ale model pro přepis
+pokaždé stahuje znovu a běží pomaleji.
+
+**Jako appka na ploše:** v Safari klepni na *Sdílet → Přidat na plochu*. Otevře se na celou obrazovku
+s vlastní ikonou.
+
+Na iPhonu:
+- video vybereš z Fotek nebo Souborů,
+- text v přepisu označíš podržením prstu,
+- klipy posouváš šipkami ◀ ▶ v horní liště,
+- hotové video uložíš tlačítkem **Uložit do Fotek / sdílet**.
+
+Omezení: export v telefonu je pomalejší, pro videa z iPhonu (4K, HEVC) zvol formát 720p nebo
+9:16 a kvalitu *Rychlý náhled*. Hodně dlouhá videa se do paměti Safari nemusí vejít.
+
 ## Architektura
 
 ```

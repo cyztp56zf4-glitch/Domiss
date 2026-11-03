@@ -186,15 +186,46 @@ details summary { cursor: pointer; color: var(--muted); }
 .playhead::before { content: ""; position: absolute; top: 0; left: -5px; border: 6px solid transparent; border-top-color: #f43f5e; }
 
 @media (max-width: 900px) {
-  .workspace {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(300px, 1fr);
-    grid-template-areas: "preview" "timeline" "side";
-  }
-  .video-wrap { aspect-ratio: 16 / 9; flex: none; }
-  .side { border-left: 0; border-top: 1px solid var(--border); }
-  header { padding: 8px; }
+  /* stack everything and let the page scroll instead of squeezing panels into the screen */
+  .app { height: auto; min-height: 100%; }
+  .workspace { display: flex; flex-direction: column; flex: none; }
+  .preview { flex: none; order: 1; }
+  .timeline { order: 2; }
+  .side { order: 3; }
+  .video-wrap { aspect-ratio: 16 / 9; flex: none; max-height: 45vh; }
+  .side { border-left: 0; border-top: 1px solid var(--border); min-height: 60vh; }
+  .tab-body { overflow: visible; }
+  header { padding: 8px; position: sticky; top: 0; z-index: 5; }
 }
 
 .folder { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
 .folder-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- phones & touch ---- */
+body { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); -webkit-text-size-adjust: 100%; }
+.handle { touch-action: none; }
+@media (pointer: coarse) {
+  .handle { width: 18px; }
+  .handle-in { left: -2px; }
+  .handle-out { right: -2px; }
+  button { min-height: 38px; }
+  .w { padding: 1px 0; }
+  input, select, textarea { font-size: 16px; } /* stops iOS zooming into fields */
+}
+@media (max-width: 600px) {
+  .lbl { display: none; }
+  .brand .muted { display: none; }
+  header { gap: 8px; }
+  .toolbar { gap: 4px; }
+  .toolbar button { padding: 6px 10px; }
+  .drop { padding: 32px 20px; }
+  .timeline-scroll { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+  .tab-body { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .transcript-tools { flex-wrap: wrap; }
+  .transcript-tools input { flex-basis: 100%; }
+}
+.touch { display: none; }
+@media (pointer: coarse) {
+  .touch { display: inline; }
+  .no-touch { display: none; }
+}
