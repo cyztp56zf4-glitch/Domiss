@@ -13,6 +13,7 @@ const password = process.env.APP_PASSWORD;
 if (password) {
   const expected = Buffer.from(password);
   app.use((req, res, next) => {
+    if (req.path === "/api/health") return next(); // hosting health checks; reveals nothing sensitive
     const header = req.headers.authorization ?? "";
     const given = header.startsWith("Basic ")
       ? Buffer.from(Buffer.from(header.slice(6), "base64").toString().split(":").slice(1).join(":"))
@@ -48,6 +49,8 @@ app.post("/api/ai/edit", async (req, res) => {
 if (process.env.NODE_ENV === "production") {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const dist = path.resolve(here, "../dist");
+  // hashed build assets (incl. ~60 MB of wasm) never change → let the phone cache them
+  app.use("/assets", express.static(path.join(dist, "assets"), { immutable: true, maxAge: "1y" }));
   app.use(express.static(dist));
   app.get(/^(?!\/api\/).*/, (_req, res) => res.sendFile(path.join(dist, "index.html")));
 }

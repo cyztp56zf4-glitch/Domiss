@@ -41,11 +41,28 @@ Bez `ANTHROPIC_API_KEY` funguje všechno kromě sekce *AI střih (Claude)*.
 Při prvním přepisu se z Hugging Face stáhne model Whisper (~80 MB, resp. ~250 MB pro Small);
 prohlížeč si ho pak pamatuje.
 
-## Na iPhonu
+## Nasazení na internet (appka na iPhonu bez zapnutého počítače)
 
-Aplikace běží na tvém počítači a iPhone ji otevře v Safari. Video se zpracovává přímo v telefonu.
+Repozitář obsahuje `render.yaml`, takže na [Render](https://render.com) je nasazení na pár kliknutí:
 
-**Varianta A – odkudkoli (doporučeno):**
+1. Přihlas se na render.com přes GitHub a povol mu přístup k repozitáři **Domiss**.
+2. **New → Blueprint**, vyber repozitář Domiss a větev, kde appka je (po sloučení pull requestu `main`).
+3. Vyplň **ANTHROPIC_API_KEY** a **APP_PASSWORD** (heslo k appce) a potvrď **Apply**.
+4. Po sestavení (pár minut) dostaneš adresu `https://domiss-….onrender.com`.
+5. Otevři ji v **Safari na iPhonu**, zadej heslo (jméno libovolné) a dej **Sdílet → Přidat na plochu**.
+   Na ploše pak máš ikonu Domiss, která se otevře přes celou obrazovku jako appka.
+
+Bezplatný tarif Renderu po ~15 minutách nečinnosti usne a první otevření pak trvá asi minutu;
+placený tarif běží pořád. Na jiný hosting (Fly.io, Railway, vlastní server) se dá nasadit přiložený
+`Dockerfile` – stačí nastavit stejné dvě proměnné.
+
+Video se i tak zpracovává v telefonu; server jen servíruje appku a posílá přepis do Claude.
+
+## Na iPhonu z vlastního počítače
+
+Bez hostingu může appka běžet na tvém počítači a iPhone ji otevře v Safari.
+
+**Varianta A – odkudkoli:**
 
 ```bash
 # do .env si dej APP_PASSWORD=nejake-heslo
