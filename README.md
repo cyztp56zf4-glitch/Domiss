@@ -43,6 +43,10 @@ prohlížeč si ho pak pamatuje.
 
 ## Nasazení na internet (appka na iPhonu bez zapnutého počítače)
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/cyztp56zf4-glitch/Domiss/tree/claude/ai-video-editor-app-w3e3hx)
+
+Tlačítko výše jde použít i z iPhonu. Ručně:
+
 Repozitář obsahuje `render.yaml`, takže na [Render](https://render.com) je nasazení na pár kliknutí:
 
 1. Přihlas se na render.com přes GitHub a povol mu přístup k repozitáři **Domiss**.
